@@ -2,26 +2,40 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Audiory | Feature Requests</title>
     <style>
         :root { --blue: #3730a3; --gray: #f4f6f8; }
         body { font-family: sans-serif; background: var(--gray); margin: 0; }
-        header { background: var(--blue); color: white; padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+        
+        /* Header & Nav */
+        header { background: var(--blue); color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
         .logo { font-size: 1.5rem; font-weight: bold; }
-        nav a { color: white; text-decoration: none; margin-left: 20px; font-weight: 500; }
+        .nav-links { display: flex; gap: 20px; }
+        .nav-links a { color: white; text-decoration: none; font-weight: 500; }
+        
+        /* Mobile Hamburger */
+        .menu-toggle { display: none; cursor: pointer; font-size: 1.5rem; }
+        @media (max-width: 600px) {
+            .nav-links { display: none; flex-direction: column; background: var(--blue); position: absolute; top: 60px; right: 0; width: 100%; padding: 1rem; text-align: center; }
+            .nav-links.active { display: flex; }
+            .menu-toggle { display: block; }
+        }
+
         .container { max-width: 700px; margin: 2rem auto; padding: 0 1rem; }
-        .card { background: white; padding: 1.5rem; margin-bottom: 1rem; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .card { background: white; padding: 1.5rem; margin-bottom: 1rem; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer; }
         .btn { background: var(--blue); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
-        footer { text-align: center; padding: 3rem; color: #888; }
         #detailView { display: none; }
+        footer { text-align: center; padding: 3rem; color: #888; }
     </style>
 </head>
 <body>
 
 <header>
     <div class="logo">Audiory</div>
-    <nav>
-        <a href="https://audiory.site">Back to Website</a>
+    <div class="menu-toggle" onclick="document.querySelector('.nav-links').classList.toggle('active')">☰</div>
+    <nav class="nav-links">
+        <a href="https://audiory.site">Back to Main Website</a>
         <a href="#" id="authBtn">Login</a>
     </nav>
 </header>
@@ -31,17 +45,17 @@
     <div id="requestList"></div>
     <hr>
     <h3>Suggest a Feature</h3>
-    <input type="text" id="reqTitle" placeholder="Title" style="width:100%; padding:10px; margin-bottom:10px;"><br>
-    <textarea id="reqDesc" placeholder="Description" style="width:100%; padding:10px;"></textarea><br>
-    <button class="btn" onclick="submitRequest()">Submit</button>
+    <input type="text" id="reqTitle" placeholder="Feature Title" style="width:100%; padding:10px; margin-bottom:10px; box-sizing:border-box;"><br>
+    <textarea id="reqDesc" placeholder="Description" style="width:100%; padding:10px; height:100px; box-sizing:border-box;"></textarea><br>
+    <button class="btn" onclick="submitRequest()">Submit Request</button>
 </div>
 
 <div class="container" id="detailView">
-    <button onclick="goBack()">← Back to list</button>
+    <button onclick="goBack()" class="btn" style="background:#666;">← Back to List</button>
     <div id="requestDetail"></div>
     <h3>Comments</h3>
-    <div id="commentList"></div>
-    <textarea id="commentText" placeholder="Add a comment..."></textarea>
+    <div id="commentList" style="margin-bottom:20px;"></div>
+    <textarea id="commentText" placeholder="Add a comment..." style="width:100%; padding:10px; box-sizing:border-box;"></textarea><br>
     <button class="btn" onclick="postComment()">Post Comment</button>
 </div>
 
@@ -50,17 +64,35 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-    import { getAuth, signInWithPopup, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-    const firebaseConfig = { /* ADD YOUR FIREBASE CONFIG HERE */ };
+    const firebaseConfig = {
+      apiKey: "AIzaSyCmsFTjDryYOTddWfScTKsnrs0cWAHnpdc",
+      authDomain: "audiory-beat-store.firebaseapp.com",
+      projectId: "audiory-beat-store",
+      storageBucket: "audiory-beat-store.firebasestorage.app",
+      messagingSenderId: "688272560511",
+      appId: "1:688272560511:web:9031e6ce215d6f08764a4a",
+      measurementId: "G-GLYGWQGS26"
+    };
+
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const auth = getAuth(app);
-    
     let currentReqId = null;
 
-    // --- RENDER LIST ---
-    const q = query(collection(db, "requests"), orderBy("votes", "desc"));
+    // --- Auth State ---
+    onAuthStateChanged(auth, (user) => {
+        document.getElementById('authBtn').innerText = user ? "Logout" : "Login";
+    });
+
+    document.getElementById('authBtn').onclick = () => {
+        if (auth.currentUser) signOut(auth);
+        else signInWithPopup(auth, new GoogleAuthProvider());
+    };
+
+    // --- List Requests ---
+    const q = query(collection(db, "requests"), orderBy("createdAt", "desc"));
     onSnapshot(q, (snap) => {
         const list = document.getElementById('requestList');
         list.innerHTML = "";
@@ -69,23 +101,22 @@
             list.innerHTML += `<div class="card" onclick="viewRequest('${d.id}')">
                 <h3>${data.title}</h3>
                 <p>${data.description}</p>
-                <small>By: ${data.handle} | Votes: ${data.votes}</small>
-                <button onclick="event.stopPropagation(); vote('${d.id}')">Vote</button>
+                <small>By: @${data.handle} | <b>Votes: ${data.votes}</b></small>
+                <button onclick="event.stopPropagation(); vote('${d.id}')" class="btn">Vote Up</button>
             </div>`;
         });
     });
 
-    // --- LOGIC ---
     window.submitRequest = async () => {
-        if (!auth.currentUser) return alert("Login required");
+        if (!auth.currentUser) return alert("Please login first!");
         await addDoc(collection(db, "requests"), {
             title: document.getElementById('reqTitle').value,
             description: document.getElementById('reqDesc').value,
-            handle: auth.currentUser.displayName || "User",
+            handle: auth.currentUser.displayName || "Anonymous",
             votes: 0,
             createdAt: serverTimestamp()
         });
-        alert("Request added!");
+        alert("Request submitted!");
     };
 
     window.vote = async (id) => {
@@ -96,18 +127,28 @@
         currentReqId = id;
         document.getElementById('listView').style.display = 'none';
         document.getElementById('detailView').style.display = 'block';
-        // Logic to fetch comments for this ID would go here...
+        
+        // Listen to comments
+        onSnapshot(query(collection(db, `requests/${id}/comments`), orderBy("createdAt", "asc")), (snap) => {
+            const cList = document.getElementById('commentList');
+            cList.innerHTML = "";
+            snap.forEach(c => cList.innerHTML += `<div style="background:#eee; padding:10px; margin:5px 0;"><b>${c.data().handle}:</b> ${c.data().text}</div>`);
+        });
+    };
+
+    window.postComment = async () => {
+        if (!auth.currentUser) return alert("Login to comment!");
+        await addDoc(collection(db, `requests/${currentReqId}/comments`), {
+            text: document.getElementById('commentText').value,
+            handle: auth.currentUser.displayName || "Anonymous",
+            createdAt: serverTimestamp()
+        });
+        document.getElementById('commentText').value = "";
     };
 
     window.goBack = () => {
         document.getElementById('listView').style.display = 'block';
         document.getElementById('detailView').style.display = 'none';
-    };
-
-    // Auth Handler
-    document.getElementById('authBtn').onclick = () => {
-        if (auth.currentUser) signOut(auth);
-        else signInWithPopup(auth, new GoogleAuthProvider());
     };
 </script>
 
