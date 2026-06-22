@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Request a Feature | Audiory</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f4f6f8; margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
+        h1 { color: #1a1a1a; margin-top: 0; }
+        .form-group { margin-bottom: 1.5rem; }
+        label { display: block; margin-bottom: 0.5rem; font-weight: 600; }
+        input, textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        button { background: #4f46e5; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        button:hover { background: #4338ca; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Request a Feature</h1>
+    <p>Help us improve Audiory. What do you need?</p>
+    
+    <form id="requestForm">
+        <div class="form-group">
+            <label>Feature Title</label>
+            <input type="text" id="title" required placeholder="e.g., New Payout Method">
+        </div>
+        <div class="form-group">
+            <label>Description</label>
+            <textarea id="description" rows="4" required placeholder="Tell us how this would help your workflow..."></textarea>
+        </div>
+        <button type="submit" id="submitBtn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            Send Request
+        </button>
+    </form>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    // REPLACE WITH YOUR CONFIG
+    const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_PROJECT_ID.appspot.com",
+        messagingSenderId: "YOUR_ID",
+        appId: "YOUR_APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const form = document.getElementById('requestForm');
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = true;
+        btn.innerText = "Sending...";
+
+        try {
+            await addDoc(collection(db, "featureRequests"), {
+                title: document.getElementById('title').value,
+                description: document.getElementById('description').value,
+                timestamp: new Date()
+            });
+            alert("Thanks for your request!");
+            form.reset();
+        } catch (e) {
+            alert("Error sending request. Please try again.");
+            console.error(e);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "Send Request";
+        }
+    });
+</script>
+
+</body>
+</html>
